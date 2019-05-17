@@ -1,0 +1,53 @@
+1. CFG
+ 
+PROG → DEC | DEC PROG 
+DEC → def ID (VARDEC) = BLOCK
+VARDEC →  ε | VARDECNE 
+VARDECNE → ID | VARDECNE, ID 
+ID → ... (identifiers)
+INT → ... (Integers)
+BOOL → true | false
+STRING → ... (Strings)
+BLOCK → { ENE }
+ENE → E | E; ENE
+E →  INT
+  | BOOL 
+  | ID 
+  | if E COMP E then BLOCK else BLOCK
+  | (E BINOP E)
+  | skip
+  | BLOCK
+  | while E COMP E do BLOCK 
+  | repeat BLOCK until E COMP E 
+  | ID := E
+  | ID (ARGS)
+  | break
+  | continue
+ARGS → ε | ARGSNE
+ARGSNE → E | ARGSNE, E
+COMP → == | < | > | <= | >=
+BINOP → + | - | * | / 
+
+2. Keywords
+
+[def, if, then, else, skip, while, do, repeat, until, break, continue]
+
+3. Integers 
+
+All non-empty arrays of characters containing digits 0-9.
+
+4. Strings 
+
+Arrays of characters contained in quotation marks ("").
+
+5. Special notations
+
+[; ( ) = == < > <= >= , { } := + * - /]
+
+6. Identifiers 
+
+[a-z]+[A-Z0-9]*_*
+
+7. Spaces 
+
+Spaces (" "), Tabs (\t), Newlines (\n)
