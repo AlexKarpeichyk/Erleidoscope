@@ -1,17 +1,4 @@
 module Parser
-{-
-( PROG (..)
-, DEC (..)
-, VARDEC (..)
-, BLOCK (..)
-, ENE (..)
-, E (..)
-, BLN (..)
-, ARGS (..)
-, COMP (..)
-, BINOP (..)
-, 
-)-}
 where
 
 -- Necessary Imports
@@ -20,31 +7,92 @@ import Lexer
 
 -- Datatypes
 
-data PROG = Prog [DEC] deriving (Show)
-data DEC = DEF (String) [PARAM] (BLOCK) deriving (Show)
-data PARAM = Param (TYPE) (String) deriving (Show, Eq)
-data TYPE = Int_ | String_ | Bool_ | Void_ deriving (Show, Eq)
-data BLOCK = Block [E] deriving (Show, Eq)
+data PROG = Prog [DEC] deriving (Show, Eq, Ord)
+data DEC = Define (String) [E] (BLOCK) deriving (Show, Eq, Ord)
+data BLOCK = Block [E] deriving (Show, Eq, Ord)
 data E = 
     ID (String)
   | STR (String)
   | INT (Integer)
-  | BOOL (BLN)
-  | BinOp (BINOP)
+  | BOOL (String)
+  | Binop (BINOP)
   | Comp (COMP)
-  | COND (COMP) (BLOCK) (BLOCK)
-  | Nested (BLOCK)
+  | IF (COMP) (BLOCK) (BLOCK)
   | WHILE (COMP) (BLOCK)
   | ASSIGN (String) (E)
-  | FUNCALL (String) [E]
+  | CALL (String) [E]
+  | PRINT (E)
+  | SPAWN (E)
   | SKIP
   | BREAK
-  | CONTINUE
-  | PRINT (E) deriving (Show, Eq)
-data BLN = T | F deriving (Show, Eq)
-data COMP = Eq (E) (E) | Less (E) (E) | Greater (E) (E) | LessEq (E) (E) | GreaterEq (E) (E) deriving (Show, Eq)
-data BINOP = Add (E) (E) | Sub (E) (E) | Mult (E) (E) | Div (E) (E) deriving (Show, Eq)
+  | CONTINUE deriving (Show, Eq, Ord)
+data COMP = 
+    Eq (E) (E) 
+  | Less (E) (E) 
+  | Greater (E) (E) 
+  | LessEq (E) (E) 
+  | GreaterEq (E) (E) 
+  | NotEq (E) (E) deriving (Show, Eq, Ord)
+data BINOP = 
+    Add (E) (E) 
+  | Sub (E) (E) 
+  | Mult (E) (E) 
+  | Div (E) (E) deriving (Show, Eq, Ord)
 
+-- Functions 
+
+parse :: [Token] -> PROG
+parse l = Prog (parseDec [] l)
+
+parseDec :: [Token] -> [Token] -> [DEC]
+parseDec acc [Def,(IDENTIFIER a)] = [Define a (fst f) (parseBlock a [] (snd f))]
+  where f = parseParams a [] acc
+parseDec acc (Def:(IDENTIFIER a):Def:(IDENTIFIER b):t) = [Define a (fst f) (parseBlock a [] (snd f))] ++ (parseDec [] (Def:(IDENTIFIER b):t))
+  where f = parseParams a [] acc
+parseDec acc (Def:(IDENTIFIER a):f:t) = parseDec (acc ++ [f]) (Def:(IDENTIFIER a):t)
+parseDec acc _ = error "Syntax error: "
+
+parseParams :: String -> [E] -> [Token] -> ([E], [Token])
+parseParams s [] (LBracket:RBracket:EqualDefines:t) = ([], t)
+parseParams s acc (LBracket:(IDENTIFIER a):RBracket:EqualDefines:t) = (acc ++ [ID a], t)
+parseParams s acc (LBracket:(IDENTIFIER a):Comma:t) = parseParams s (acc ++ [ID a]) (LBracket:t)
+parseParams s acc _ = error ("Syntax error: ill-formed parameter declaration in function '" ++ s ++ "'")
+
+
+parseBlock :: String -> [Token] -> [Token] -> BLOCK
+parseBlock s acc [LCurlyBracket,RCurlyBracket] = Block (parseExps s [] acc)
+parseBlock s acc (LCurlyBracket:f:t) = parseBlock s (acc ++ [f]) (LCurlyBracket:t)
+parseBlock s acc _ = error ("Syntax error: missing/unclosed block construct in function " ++ "'" ++ s ++ "'")
+
+parseExps :: String -> [Token] -> [Token] -> [E]
+parseExps s acc [] = []
+parseExps s acc [x] = [parseE s (acc ++ [x])]
+parseExps s acc (h:Semicolon:t) = [parseE s (acc ++ [h])] ++ parseExps s [] t
+parseExps s acc (h:t) = parseExps s (acc ++ [h]) t
+
+parseE :: String -> [Token] -> E
+parseE s [IDENTIFIER x] = ID x
+parseE s [STRING x] = STR x 
+parseE s [INTEGER x] = INT x
+parseE s [BOOLEAN x] = BOOL x
+parseE s [Skip] = SKIP
+parseE s [Break] = BREAK
+parseE s [Continue] = CONTINUE
+parseE s ((IDENTIFIER x):Assign:t) = ASSIGN x (parseE s t)
+parseE s ((IDENTIFIER x):LBracket:RBracket:t) = CALL x []
+parseE s ((IDENTIFIER x):LBracket:f:t) = CALL x (parseArgs s [] (LBracket:f:t))
+--parseE s (Print:LBracket:f:t) = PRINT (parsePrint s (LBracket:f:t))
+--parseE s (Spawn:LBracket:f:t) = SPAWN (parseProc (LBracket:f:t))
+parseE s l = error ("Syntax error: expression not supported or misplaced " ++ (s))
+
+parseArgs :: String -> [Token] -> [Token] -> [E]
+parseArgs s acc [LBracket,x,RBracket] = [parseE s (acc ++ [x])]
+parseArgs s acc (LBracket:x:Comma:t) = [parseE s (acc ++ [x])] ++ (parseArgs s [] (LBracket:t))
+parseArgs s acc (LBracket:x:f:t) = parseArgs s (acc ++ [x]) (LBracket:t)
+parseArgs s acc _ = error "Parse error: error in funciton call"
+
+
+ {-
 -- Functions
 
 -- 1. Parser pre-processing
@@ -157,6 +205,7 @@ parseE (Print:t) = PRINT (parsePrint [] t)
 parseE ((IDENTIFIER s):Assign:t) = ASSIGN (s) (parseE t)
 parseE [(IDENTIFIER s),LBracket,RBracket] = FUNCALL (s) []
 parseE ((IDENTIFIER s):LBracket:t) = FUNCALL (s) (parseArgs [] (LBracket:t))
+--parseE (LBracket:t) = 
 parseE (If:t) = parseCond [] (If:t)
 parseE (While:t) = parseWhile [] (If:t)
 parseE l
@@ -218,3 +267,4 @@ parseWhile acc [While,x,Do,(Bl y)]
     l = (acc ++ [x])
 parseWhile acc (If:x:t) = parseWhile (acc ++ [x]) (While:t)
 parseWhile acc _ = error "Parse error: error in while-lopp."
+-}
