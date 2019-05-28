@@ -24,7 +24,7 @@ tokens = fromList [(";", Semicolon), ("(", LBracket), (")", RBracket), ("{", LCu
 
 -- Functions
 
-isNum :: [Char] -> Bool
+isNum :: String -> Bool
 isNum [x] = isDigit x
 isNum (h:t) = (isDigit h) && (isNum t)
 
@@ -47,7 +47,7 @@ token s
   | isBool s = BOOLEAN s
   | isID s = IDENTIFIER s
   | isString s = STRING s
-  | otherwise = error ("Lexical error: unknown token (" ++ s ++ ")")
+  | otherwise = error ("Lexical error: token not supported (" ++ s ++ ")")
 
 cleanToken (Just t) = t
 
